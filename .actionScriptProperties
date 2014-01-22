@@ -23,7 +23,11 @@
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default">
+<<<<<<< HEAD
       <airSettings airCertificatePath="D:/flexworkspace/flexCertificate.p12" airTimestamp="false" anePathSet="true" version="1">
+=======
+      <airSettings airCertificatePath="D:/flexworkspace/gary.p12" airTimestamp="false" anePathSet="true" version="1">
+>>>>>>> refs/heads/v1.3.1.0
         <airExcludes/>
         <anePaths/>
       </airSettings>
