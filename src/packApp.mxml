@@ -43,6 +43,8 @@
 			[Bindable]
 			private var orderNum:String;
 			[Bindable]
+			private var batchNum:String;
+			[Bindable]
 			private var productType:String;
 			[Bindable]
 			private var productTypeArray:ArrayCollection;
@@ -510,27 +512,34 @@
 			{
 				packProductSn = productSn.text;
 				orderNum = orderNumInput.text;
+				batchNum = batchNumInput.text;
 				packBoxSn = boxSn.text;
 				employeeName = employeeIdInput.text;
 				productType = producttypeComboBox.selectedItem;
-				
-				packingProductSnCheckService.url = "http://"+serverIp+"/camel/index.php/login/packingProductSnCheck";
-				if(packProductSn.length == 0)
+				if(packProductSn.indexOf(batchNum) == -1)
 				{
-					//do noting
+					Alert.show("当前扫描产品与设定批次号不符\n设定批次：" + batchNum + "\n当前产品：" + packProductSn);
 				}
 				else
 				{
-					if(!checkPimCheckBox.selected)
+					packingProductSnCheckService.url = "http://"+serverIp+"/camel/index.php/login/packingProductSnCheck";
+					if(packProductSn.length == 0)
 					{
-						pimState = "pimuncheck";
-						packingProductSnCheckService.send();
+						//do noting
 					}
 					else
 					{
-						pimState = "pimcheck";
-						packingProductSnCheckService.send();
-					}	
+						if(!checkPimCheckBox.selected)
+						{
+							pimState = "pimuncheck";
+							packingProductSnCheckService.send();
+						}
+						else
+						{
+							pimState = "pimcheck";
+							packingProductSnCheckService.send();
+						}	
+					}
 				}
 			}			
 			//弹出询问PIM是否测试的询问框的用户选择的结果处理
@@ -756,6 +765,28 @@
 				if(odernum.length == 0)
 				{
 					Alert.show("请正确输入订单号！");
+				}
+				else
+				{
+					batchNumInput.setFocus();
+				}
+			}
+			//批次号输入框的enter事件
+			protected function batchNumInput_enterHandler(event:FlexEvent):void
+			{
+				var  batchNumInputTimer:Timer = new Timer(500,1);
+				batchNumInputTimer.start();
+				batchNumInputTimer.addEventListener(TimerEvent.TIMER_COMPLETE,batchNumInputTimerTimeOut);
+			}
+			protected function batchNumInputTimerTimeOut(event:TimerEvent):void
+			{
+				//判断是否为空
+				var p:RegExp = /\s/g;
+				var batchnum:String = batchNumInput.text;
+				batchnum = batchnum.replace(p,"");
+				if(batchnum.length == 0)
+				{
+					Alert.show("请正确输入批次号！");
 				}
 				else
 				{
@@ -1108,7 +1139,7 @@
 			  click.packingBagState="resetBtn_clickHandler(event)"/>
 	<s:Label includeIn="packingBagState" x="182" y="143" text="订单号"/>
 	<s:TextInput id="orderNumInput"
-				 includeIn="packingBagState" x="235" y="137" width="250"
+				 includeIn="packingBagState" x="235" y="137" width="127"
 				 enter.packingBagState="orderNumInput_enterHandler(event)"
 				 />
 	<s:Label includeIn="packingBagState" x="602" y="144" text="产品型号"/>
@@ -1132,5 +1163,8 @@
 					width="323" height="30" label="容积：0"
 					labelPlacement="center"
 					barSkin="mx.skins.halo.ProgressBarSkin"/>
+	<s:Label includeIn="packingBagState" x="370" y="143" text="批次号"/>
+	<s:TextInput id = "batchNumInput" includeIn="packingBagState" x="409" y="137" width="185"
+				 enter.packingBagState="batchNumInput_enterHandler(event)"/>
 	
 </s:WindowedApplication>
