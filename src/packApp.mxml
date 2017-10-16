@@ -503,8 +503,8 @@
 						}
 						else if(resultInfo == "hipotresultfail")
 						{
-							var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
-							snd3.play();
+							var sndHipotfail:Sound = new Sound(new URLRequest("../sound.mp3"));
+							sndHipotfail.play();
 							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
 							bagFailContainer.setStyle("backgroundColor","red");
 							bagUntestedContainer.setStyle("backgroundColor","#E6E6E6");
@@ -539,8 +539,8 @@
 						}
 						else if(resultInfo == "pimresultfail")
 						{
-							var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
-							snd3.play();
+							var sdPimFail:Sound = new Sound(new URLRequest("../sound.mp3"));
+							sdPimFail.play();
 							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
 							bagFailContainer.setStyle("backgroundColor","red");
 							bagUntestedContainer.setStyle("backgroundColor","#E6E6E6");
