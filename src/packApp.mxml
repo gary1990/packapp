@@ -6,6 +6,7 @@
 					   width="1004" height="644" currentState="loginState"
 					   initialize="windowedapplication_initializeHandler(event)"
 					   backgroundColor.loginState="#EFEDED" creationComplete.loginState="init()"
+					   width.packingBagState="1056" height.packingBagState="714"
 					   closing.packingBagState="windowedapplication1_closingHandler(event)">
 	<fx:Script>
 		<![CDATA[
@@ -22,9 +23,17 @@
 			import mx.managers.PopUpManager;
 			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
 			
 			import spark.events.IndexChangeEvent;
 			import spark.events.TextOperationEvent;
+			
+			//TODO 项目部署目录
+			[Bindable]
+			private var serverName:String = "camelHuacan";
+			//TODO 操作系统的路径分割符，发布前改成目标操作系统的分隔符
+			[Bindable]
+			private var osSlash:String = "/";
 			
 			[Bindable]
 			private var employeeId:String;
@@ -38,6 +47,10 @@
 			private var packProductSn:String;
 			[Bindable]
 			private var pimState:String;
+			//华为文件保存路径
+			[Bindable]
+			private var HWFilePath:String;
+			
 			//包装箱号
 			[Bindable]
 			private var packBoxSn:String;
@@ -77,6 +90,22 @@
 			[Bindable]
 			private var currTestTime:String;
 			
+			//工单号
+			[Bindable]
+			private var jobNum:String;
+			//厂区
+			[Bindable]
+			private var factoryId:String;
+			//物料名称
+			[Bindable]
+			private var materialName:String;
+			//物料编码
+			[Bindable]
+			private var materialCode:String;
+			//批次号
+			[Bindable]
+			private var lotCode:String;
+			
 			private var alrt:Alert;
 			private var alrtTimer:Timer;
 			private var i:int = 1;
@@ -92,6 +121,13 @@
 					serIpFileFs.open(serIpFile,FileMode.READ);
 					serverIpInput.text = serIpFileFs.readUTF();
 					serIpFileFs.close();
+				}
+				var HWFilePathFile:File = File.documentsDirectory.resolvePath("HWFilePath.txt");
+				if(HWFilePathFile.exists) {
+					var HWPathFileFs:FileStream = new FileStream();
+					HWPathFileFs.open(HWFilePathFile,FileMode.READ);
+					HWFilePathInput.text = HWPathFileFs.readUTF();
+					HWPathFileFs.close();
 				}
 				
 				var dt:Date = new Date();
@@ -120,12 +156,26 @@
 				}
 			}
 			
+			//选择华为文件保存路径
+			protected function HWPathBtn_clickHandler(event:MouseEvent):void
+			{
+				var file:File = new File();
+				file.browseForDirectory("请选择文件保存路径");
+				file.addEventListener(Event.SELECT, HWpathSelected);
+			}
+			//选择路径监听事件
+			protected function HWpathSelected(e:Event):void
+			{
+				HWFilePathInput.text = e.target.nativePath;
+			}
+			
 			//loginState中登录按钮click事件处理：发送serverConnectService请求
 			protected function loginBtn_clickHandler(event:MouseEvent):void
 			{
 				employeeId = employeeIdInput.text;
 				employeePassword = employeePasswordInput.text;
 				serverIp = serverIpInput.text;
+				HWFilePath = HWFilePathInput.text;
 				
 				var prefsFile:File = File.documentsDirectory.resolvePath("serIp.txt");
 				var prefsFileFs:FileStream = new FileStream();
@@ -142,6 +192,12 @@
 				versionsIdFs.open(versionsId,FileMode.UPDATE);
 				versionsIdFs.writeUTF(versionsIdLabel.text);
 				versionsIdFs.close();
+				var HWPathFile:File = File.documentsDirectory.resolvePath("HWFilePath.txt");
+				var HWPathFileFs:FileStream = new FileStream();
+				HWPathFileFs.open(HWPathFile,FileMode.UPDATE);
+				HWPathFileFs.writeUTF(HWFilePath);
+				HWPathFileFs.close();
+				
 				
 				if(employeeId.length == 0)
 				{
@@ -151,9 +207,13 @@
 				{
 					Alert.show("请输入包装员密码");
 				}
+				else if(HWFilePath.length == 0)
+				{
+					Alert.show("请指定华为文件保存路径");
+				}
 				else
 				{
-					serverConnectService.url = "http://"+serverIp+"/camel/index.php/login/packingConnectCheck";
+					serverConnectService.url = "http://"+serverIp+"/"+ serverName +"/index.php/login/packingConnectCheck";
 					serverConnectService.send();
 				}
 			}
@@ -164,7 +224,7 @@
 				if(event.result.result == "connected")
 				{
 					serverIpInput.setStyle("borderColor","green");
-					packingUserCheckService.url = "http://"+serverIp+"/camel/index.php/login/packingUserCheck";
+					packingUserCheckService.url = "http://"+serverIp+"/" + serverName + "/index.php/login/packingUserCheck";
 					packingUserCheckService.send();
 				}
 				else
@@ -213,7 +273,7 @@
 				orderNumInput.text="";
 				productSn.text="";
 				producttypeComboBox.enabled = false;
-				boxSn.text="TBD";
+				boxSn.text="";
 				boxSn.enabled=false;
 				boxCountInput.enabled = false;
 				boxCountInput.text = "";
@@ -240,7 +300,7 @@
 				
 				//发送productypeHttpService请求，取得产品型号
 				productType = "";
-				productypeHttpService.url = "http://"+serverIp+"/camel/index.php/login/getProducttype";
+				productypeHttpService.url = "http://"+serverIp+"/" + serverName + "/index.php/login/getProducttype";
 				productypeHttpService.send();
 				
 				/*
@@ -300,6 +360,13 @@
 			{
 				//取得返回结果
 				var resultInfo:String = event.result.result.info;
+				//取得返回的Json字符串，包含VNA和PIM测试的详细信息，华为要求
+				var resultJsonData:String = event.result.result.data;
+				//取得返回的测试时间，生成华为json文件时用
+				var testTime:String = event.result.result.testtime;
+				//华为json文件名称
+				var jsonFileName:String = this.factoryId + "_" + this.materialCode + "_" + this.packProductSn + "_" + testTime + ".json";
+				
 				//数据库中存在此序列号的合格品
 				if(resultInfo == "exists")
 				{
@@ -353,6 +420,11 @@
 							var resultVnaTagTemp:String = event.result.result.vnatag;
 							//记录到包装记录String
 							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp+"'),";
+							
+							//保存文件到指定华为目录
+							if(resultJsonData && testTime) {
+								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+							}
 						}
 						else if (resultInfo == "vnaresultnull")
 						{
@@ -431,6 +503,11 @@
 							var resultVnaTagTemp2:String = event.result.result.vnatag;
 							//记录到包装记录String
 							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp2+"'),";
+							
+							//保存文件到指定华为目录
+							if(resultJsonData && testTime) {
+								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+							}
 						}
 						else if(resultInfo == "vnaresultfail")
 						{
@@ -470,6 +547,12 @@
 							var resultVnaTagTemp3:String = event.result.result.vnatag;
 							//记录到包装记录String
 							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp3+"'),";
+							
+							
+							//保存文件到指定华为目录
+							if(resultJsonData && testTime) {
+								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+							}
 						}
 						else if(resultInfo == "pass")
 						{
@@ -526,7 +609,7 @@
 								totalboxNumProgressBar.setProgress(completeboxNum,boxtotalNum);
 								totalboxNumProgressBar.label = "完成箱数："+completeboxNum.toString();
 								//将上一箱的包装记录发送到服务器，插入数据库
-								recordHttpService.url = "http://"+serverIp+"/camel/index.php/login/insertPackResult";
+								recordHttpService.url = "http://"+serverIp+"/" + serverName + "/index.php/login/insertPackResult";
 								recordHttpService.send();
 
 								//包装完成所有箱
@@ -553,6 +636,11 @@
 								}
 							}
 							productSn.text = "";
+							
+							//保存文件到指定华为目录
+							if(resultJsonData && testTime) {
+								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+							}
 						}
 						else
 						{
@@ -580,6 +668,27 @@
 				packBoxSn = boxSn.text;
 				employeeName = employeeIdInput.text;
 				productType = producttypeComboBox.selectedItem;
+				
+				jobNum = this.jobNumInput.text;
+				factoryId = factoryIdInput.text;
+				materialName = this.materielNameInput.text;
+				materialCode = this.materielNumInput.text;
+				if(StringUtil.trim(jobNum) == "") {
+					Alert.show("工单不能为空");
+					return;
+				}
+				if(StringUtil.trim(factoryId) == "") {
+					Alert.show("厂区不能为空");
+					return;
+				}
+				if(StringUtil.trim(materialName) == "") {
+					Alert.show("物料名称不能为空");
+					return;
+				}
+				if(StringUtil.trim(materialCode) == "") {
+					Alert.show("物料代码不能为空");
+					return;
+				}
 				//测试时间
 				var CurrentDateTime:Date = new Date();
 				var CurrentDF:DateFormatter = new DateFormatter();
@@ -595,7 +704,7 @@
 				}
 				else
 				{
-					packingProductSnCheckService.url = "http://"+serverIp+"/camel/index.php/login/packingProductSnCheck";
+					packingProductSnCheckService.url = "http://"+serverIp+"/" + serverName + "/index.php/login/packingProductSnCheck";
 					if(packProductSn.length == 0)
 					{
 						//do noting
@@ -604,14 +713,13 @@
 					{
 						if(!checkPimCheckBox.selected)
 						{
-							pimState = "pimuncheck";
-							packingProductSnCheckService.send();
+							pimState = "pimuncheck";	
 						}
 						else
 						{
 							pimState = "pimcheck";
-							packingProductSnCheckService.send();
-						}	
+						}
+						packingProductSnCheckService.send();
 					}
 				}
 			}			
@@ -621,14 +729,14 @@
 				if(event.detail == Alert.YES)
 				{
 					pimState = "ignore";
-					packingProductSnCheckService.url="http://"+serverIp+"/camel/index.php/login/packingProductSnCheck";
+					packingProductSnCheckService.url="http://"+serverIp+"/" + serverName + "/index.php/login/packingProductSnCheck";
 					packingProductSnCheckService.send();
 				}
 				else
 				{
 					checkPimCheckBox.selected = true;
 					pimState = "pimcheck";
-					packingProductSnCheckService.url="http://"+serverIp+"/camel/index.php/login/packingProductSnCheck";
+					packingProductSnCheckService.url="http://"+serverIp+"/" + serverName + "/index.php/login/packingProductSnCheck";
 					packingProductSnCheckService.send();
 				}
 			}			
@@ -637,6 +745,9 @@
 			//退出程序时当前检测当前订单进度		
 			protected function windowedapplication1_closingHandler(event:Event):void
 			{
+				if(completeTotalNum == 0 && currentBoxContainer == 0) {
+					return;
+				}
 				if(completeTotalNum%currentBoxContainer != 0) 
 				{
 					var snd7:Sound = new Sound(new URLRequest("../sound.mp3"));
@@ -716,7 +827,7 @@
 				//Alert.show("服务器连接异常！");
 				i = 1;
 				alrt = Alert.show("正在重新连接服务器，请稍后或退出程序。"+'\n'+"第"+i+"次连接", "注意", Alert.OK, this, alrt_close);
-				offlineConnect.url = "http://"+serverIp+"/camel/index.php/login/packingConnectCheck";
+				offlineConnect.url = "http://"+serverIp+"/" + serverName + "/index.php/login/packingConnectCheck";
 				offlineConnect.send();
 				alrtTimer.reset();
 				alrtTimer.start();
@@ -742,7 +853,7 @@
 				{
 					productSn.enabled = true;
 					productSn.setFocus();
-					boxSn.enabled = false;
+					boxSn.enabled = true;
 				}
 			}
 			
@@ -801,7 +912,7 @@
 				PopUpManager.removePopUp(alrt);
 				i = i+1;
 				alrt = Alert.show("正在重新连接服务器，请稍后或退出程序。"+'\n'+"第"+i+"次连接", "注意", Alert.OK, this, alrt_close);
-				offlineConnect.url = "http://"+serverIp+"/camel/index.php/login/packingConnectCheck";
+				offlineConnect.url = "http://"+serverIp+"/" + serverName + "/index.php/login/packingConnectCheck";
 				offlineConnect.send();
 				alrtTimer.reset();
 				alrtTimer.start();
@@ -843,12 +954,90 @@
 				{
 					//发送productypeHttpService请求，取得产品型号
 					productType = "";
-					productypeHttpService.url = "http://"+serverIp+"/camel/index.php/login/getProducttype";
+					productypeHttpService.url = "http://"+serverIp+"/" + serverName + "/index.php/login/getProducttype";
 					productypeHttpService.send();
 					producttypeComboBox.enabled = true;
 					producttypeComboBox.setFocus();
 				}
 			}
+			
+			//厂区输入框enter事件
+			protected function factoryIdInput_enterHandler(event:FlexEvent):void
+			{
+				var factoryIdTimer:Timer = new Timer(500,1);
+				factoryIdTimer.start();
+				factoryIdTimer.addEventListener(TimerEvent.TIMER_COMPLETE, factoryIdTimerTimeout);
+			}
+			protected function factoryIdTimerTimeout(event:TimerEvent):void
+			{
+				if(StringUtil.trim(factoryIdInput.text) == "") {
+					Alert.show("请输入厂区");
+				} else {
+					this.factoryId = this.factoryIdInput.text;
+					materielNameInput.setFocus();
+				}	
+			}
+			
+			//物料名称输入框enter事件
+			protected function materielNameInput_enterHandler(e:FlexEvent):void {
+				var materielNameTimer:Timer = new Timer(500,1);
+				materielNameTimer.start();
+				materielNameTimer.addEventListener(TimerEvent.TIMER_COMPLETE, materielNameTimerTimeout);
+			}
+			protected function materielNameTimerTimeout(e:TimerEvent):void {
+				if(StringUtil.trim(materielNameInput.text) == "") {
+					Alert.show("请输入物料名称");
+				} else {
+					this.materialName = this.materielNameInput.text;
+					materielNumInput.setFocus();
+				}
+			}
+			
+			//物料代码输入框enter事件
+			protected function materielNumInput_enterHandler(e:FlexEvent):void {
+				var materielNumTimer:Timer = new Timer(500,1);
+				materielNumTimer.start();
+				materielNumTimer.addEventListener(TimerEvent.TIMER_COMPLETE, materielNumTimerTimeout);
+			}
+			protected function materielNumTimerTimeout(e:TimerEvent):void {
+				if(StringUtil.trim(materielNumInput.text) == "") {
+					Alert.show("请输入物料代码");
+				} else {
+					this.materialCode = this.materielNumInput.text;
+					this.lotCodeInput.setFocus();
+				}
+			}
+			
+			//批次号输入框enter事件
+			protected function lotCodeInput_enterHandler(e: FlexEvent):void {
+				var lotNumTimer:Timer = new Timer(500,1);
+				lotNumTimer.start();
+				lotNumTimer.addEventListener(TimerEvent.TIMER_COMPLETE, lotNumTimerTimeout);
+			}
+			protected function lotNumTimerTimeout(e: TimerEvent):void {
+				if(StringUtil.trim(lotCodeInput.text) == "") {
+					Alert.show("请输入批次号");
+				} else {
+					this.lotCode = this.lotCodeInput.text;
+					jobNumInput.setFocus();
+				}
+			}
+			
+			//工单号输入框enter事件
+			protected function jobNumInput_enterHandler(e:FlexEvent):void {
+				var jobNumTimer:Timer = new Timer(500,1);
+				jobNumTimer.start();
+				jobNumTimer.addEventListener(TimerEvent.TIMER_COMPLETE, jobNumTimerTimeout);
+			}
+			protected function jobNumTimerTimeout(e:TimerEvent):void {
+				if(StringUtil.trim(jobNumInput.text) == "") {
+					Alert.show("请输入工单号");
+				} else {
+					this.jobNum = this.jobNumInput.text;
+					totalboxInput.setFocus();
+				}
+			}
+			
 			//箱子容量输入框的enters事件
 			protected function boxCountInput_enterHandler(event:FlexEvent):void
 			{
@@ -862,8 +1051,8 @@
 				{
 					//当前箱子容量
 					currentBoxContainer = boxContainer;
-					productSn.enabled = true;
-					productSn.setFocus();
+					boxSn.enabled = true;
+					boxSn.setFocus();
 					boxCountInput.enabled = false;
 					//需要包装产品总数
 					packTotalNum = boxContainer*Number(totalboxInput.text);
@@ -884,6 +1073,12 @@
 					orderNumInput.enabled = true;
 					orderNumInput.text = "";
 					orderNumInput.setFocus();
+					this.materielNameInput.text = "";
+					this.materielNumInput.text = "";
+					this.factoryIdInput.text = "";
+					this.jobNumInput.text = "";
+					this.lotCodeInput.text = "";
+					boxSn.text = "";
 					producttypeComboBox.selectedIndex = -1;
 					totalboxInput.text = "";
 					totalboxInput.enabled = true;
@@ -1007,6 +1202,7 @@
 			//插入记录http请求成功返回方法
 			protected function recordHttpService_resultHandler(event:ResultEvent):void
 			{
+				var resultInfo:String = event.result.result.info;
 				//重新初始化保存测试记录的数组和string
 				currBoxResultArray = new Array();
 				currBoxResultString = "";
@@ -1019,6 +1215,20 @@
 				Alert.show("抱歉！本箱包装记录未能保存到数据库，请重新包装此箱。");
 			}
 			
+			//保存json文件到指定目录
+			protected function saveStringToFile(str:String, destinationPath:String, fileNameToSave:String): void 
+			{
+				var writeStream:FileStream = new FileStream();
+				try {
+					writeStream.open(new File(destinationPath + this.osSlash + fileNameToSave), FileMode.WRITE);
+					writeStream.writeMultiByte(str, "UTF-8");
+				} catch (e:Error) {
+					Alert.show("保存华为Json文件失败！");
+				} finally {
+					
+					writeStream.close();
+				}
+			}
 			
 		]]>
 	</fx:Script>
@@ -1075,6 +1285,21 @@
 				<boxsn>
 					{packBoxSn}
 				</boxsn>
+				<jobNum>
+					{jobNum}
+				</jobNum>
+				<factoryId>
+					{factoryId}
+				</factoryId>
+				<materialName>
+					{materialName}
+				</materialName>
+				<materialCode>
+					{materialCode}
+				</materialCode>
+				<lotCode>
+					{lotCode}
+				</lotCode>
 			</s:request>
 		</s:HTTPService>
 		<s:HTTPService  id="productypeHttpService"
@@ -1104,13 +1329,13 @@
 	<s:Label id="versionsNameLabel" includeIn="loginState,packingBagState" x="0" y="0" width="1003"
 			 height="55" backgroundColor="#011641" color="#B8E9FF" fontFamily="Rockwell Extra Bold"
 			 fontSize="20" fontWeight="bold" paddingLeft="10" paddingTop="30" text="Camel包装检查程序"
-			 />
+			 width.packingBagState="1056"/>
 	<s:Label id="versionsIdLabel" includeIn="loginState,packingBagState" x="0" y="53" width="1003"
 			 height="23" backgroundColor="#011641" color="#B8E9FF" paddingRight="5" text="版本  1.3.0"
 			 textAlign="right"
-			 text.loginState="版本  1.3.2"
-			 text.packingBagState="版本  1.3.2"/>
-	<s:Label includeIn="loginState" x="361" y="252" fontFamily="Arial" fontSize="13" text="工号"/>
+			 text.loginState="版本  1.4.0"
+			 width.packingBagState="1056" text.packingBagState="版本  1.4.0"/>
+	<s:Label includeIn="loginState" x="355" y="252" fontFamily="Arial" fontSize="13" text="工号"/>
 	<s:TextInput id="employeeIdInput" 
 				 includeIn="loginState" 
 				 x="441" y="246" width="200" height="30"/>
@@ -1119,60 +1344,65 @@
 	<s:TextInput id="serverIpInput" 
 				 includeIn="loginState" 
 				 x="441" y="344" width="200" height="28"/>
-	<s:Label x="361" y="299" 
+	<s:TextInput id="HWFilePathInput" includeIn="loginState" x="441" y="394" width="200" height="28"
+				 enabled="false"/>
+	<s:Label x="355" y="299" 
 			 includeIn="loginState" fontSize="13" 
 			 text="密码"/>
-	<s:Label x="361" y="349" 
+	<s:Label x="355" y="349" 
 			 includeIn="loginState" fontSize="13" 
 			 text="服务器"/>
+	<s:Label includeIn="loginState" x="340" y="407" fontSize="13" text="华为上传目录"/>
 	<s:Button id="loginBtn" 
 			  includeIn="loginState" 
-			  x="577" y="394" width="65" height="25" 
+			  x="576" y="447" width="66" height="25" 
 			  label="登录"
 			  click="loginBtn_clickHandler(event)"/>
+	<s:Button id="HWPathButton" includeIn="loginState" x="650" y="397" width="66" height="25" label="选择..."
+			  click="HWPathBtn_clickHandler(event)"/>
 	<s:Label includeIn="loginState,packingBagState" x="452" y="522" fontSize="12"
 			 text="版权所有©上海瑗环电子科技有限公司"
 			 x.loginState="404" y.loginState="551"
-			 x.packingBagState="409" y.packingBagState="594"/>
-	<s:Label id="packinguserName" includeIn="packingBagState" x="94" y="93" fontSize="12"
+			 x.packingBagState="424" y.packingBagState="658"/>
+	<s:Label id="packinguserName" includeIn="packingBagState" x="109" y="93" fontSize="12"
 			 text="Label"/>
-	<s:Label includeIn="packingBagState" x="47" y="92" fontSize="12" text="您好！"/>
-	<s:Label id="serverStatus" includeIn="packingBagState" x="941" y="89" width="47" fontSize="12"
+	<s:Label includeIn="packingBagState" x="62" y="92" fontSize="12" text="您好！"/>
+	<s:Label id="serverStatus" includeIn="packingBagState" x="956" y="89" width="47" fontSize="12"
 			 fontWeight="bold" text="Label"/>
-	<s:Label includeIn="packingBagState" x="25" y="107" width="965" color="#C0B9B9"
+	<s:Label includeIn="packingBagState" x="40" y="107" width="965" color="#C0B9B9"
 			 text="_________________________________________________________________________________________________________________________________________"/>
-	<s:Label includeIn="packingBagState" x="25" y="168" width="967" color="#B7B2B2"
+	<s:Label includeIn="packingBagState" x="40" y="232" width="967" color="#B7B2B2"
 			 text="_________________________________________________________________________________________________________________________________________"/>
-	<s:Label includeIn="packingBagState" x="24" y="221" width="968" color="#A19D9D"
+	<s:Label includeIn="packingBagState" x="39" y="285" width="968" color="#A19D9D"
 			 text="_________________________________________________________________________________________________________________________________________"/>
-	<s:Label includeIn="packingBagState" x="51" y="249" fontSize="12" text="产品 SN："/>
-	<s:Label includeIn="packingBagState" x="314" y="200" fontSize="12" text="包装箱：&#xd;"/>
+	<s:Label includeIn="packingBagState" x="66" y="313" fontSize="12" text="产品 SN："/>
+	<s:Label includeIn="packingBagState" x="329" y="264" fontSize="12" text="包装箱：&#xd;"/>
 	<s:TextInput id="productSn"
 				 includeIn="packingBagState" 
-				 x="115" y="245" width="503"
+				 x="130" y="309" width="503"
 				 enter="productSn_enterHandler(event)"/>
 	<s:TextInput id="boxSn"
-				 includeIn="packingBagState" x="367" y="196" width="250"
+				 includeIn="packingBagState" x="382" y="260" width="250"
 				 enter="boxSn_enterHandler(event)"
 				 />
 	<s:BorderContainer id="bagPassContainer" 
 					   includeIn="packingBagState" 
-					   x="44" y="294" width="579" height="38"
+					   x="59" y="358" width="579" height="38"
 					   backgroundColor="#E6E6E6">
 		<s:Label x="224" y="15" fontWeight="bold" text="产品数："/>
 		<s:Label id="bagPassCount" x="276" y="16" width="55" text="0"/>
 	</s:BorderContainer>
-	<s:BorderContainer id="bagFailContainer" includeIn="packingBagState" x="640" y="296" width="323" height="26"
+	<s:BorderContainer id="bagFailContainer" includeIn="packingBagState" x="655" y="360" width="323" height="26"
 					   backgroundColor="#E6E6E6">
 		<s:Label x="118" y="7" fontWeight="bold" text="不合格品："/>
 		<s:Label id="bagFailCount" x="177" y="8" width="45" text="0"/>
 	</s:BorderContainer>
-	<s:BorderContainer id="bagUntestedContainer" includeIn="packingBagState" x="640" y="441" width="323" height="26"
+	<s:BorderContainer id="bagUntestedContainer" includeIn="packingBagState" x="655" y="505" width="323" height="26"
 					   backgroundColor="#E6E6E6">
 		<s:Label x="119" y="7" fontWeight="bold" text="未测试："/>
 		<s:Label id="bagUntestedCount" x="167" y="8" width="48" text="0"/>
 	</s:BorderContainer>
-	<s:BorderContainer includeIn="packingBagState" x="44" y="331" width="579" height="240">
+	<s:BorderContainer includeIn="packingBagState" x="59" y="395" width="579" height="240">
 		<s:Label x="1" y="10" fontWeight="bold" text="序号"/>
 		<s:Label x="38" y="10" fontWeight="bold" text="产品序列号"/>
 		<s:Label x="302" y="10" fontWeight="bold" text="订单号"/>
@@ -1185,7 +1415,7 @@
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
-	<s:BorderContainer includeIn="packingBagState" x="640" y="321" width="323" height="101">
+	<s:BorderContainer includeIn="packingBagState" x="655" y="385" width="323" height="101">
 		<s:Label x="11" y="7" fontWeight="bold" text="序号"/>
 		<s:Label x="44" y="7" fontWeight="bold" text="产品序列号"/>
 		<s:Label x="263" y="7" fontWeight="bold" text="不合格项"/>
@@ -1197,7 +1427,7 @@
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
-	<s:BorderContainer includeIn="packingBagState" x="640" y="466" width="323" height="105">
+	<s:BorderContainer includeIn="packingBagState" x="655" y="530" width="323" height="105">
 		<s:Label x="12" y="4" fontWeight="bold" text="序号"/>
 		<s:Label x="264" y="4" fontWeight="bold" text="未测试项"/>
 		<s:Label x="44" y="4" fontWeight="bold" text="产品序列号"/>
@@ -1209,42 +1439,60 @@
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
-	<s:CheckBox id="checkPimCheckBox" includeIn="packingBagState" x="47" y="129" label="检查PIM"
+	<s:CheckBox id="checkPimCheckBox" includeIn="packingBagState" x="43" y="147" label="检查PIM"
 				selected="true"/>
-	<s:CheckBox id="checkVnaCheckBox" includeIn="packingBagState" x="47" y="150" label="检查VNA"
+	<s:CheckBox id="checkVnaCheckBox" includeIn="packingBagState" x="43" y="168" label="检查VNA"
 				enabled="false" selected="true"/>
-	<s:Label id="currentTime" includeIn="packingBagState" x="215" y="93" fontSize="12" text="今天是："/>
-	<s:Label includeIn="packingBagState" x="24" y="269" width="968" color="#AFACAC"
+	<s:Label id="currentTime" includeIn="packingBagState" x="230" y="93" fontSize="12" text="今天是："/>
+	<s:Label includeIn="packingBagState" x="39" y="333" width="968" color="#AFACAC"
 			 text="_________________________________________________________________________________________________________________________________________"/>
-	<s:Label includeIn="packingBagState" x="175" y="200" text="容积："/>
-	<s:TextInput id="boxCountInput" includeIn="packingBagState" x="217" y="196" width="42"
+	<s:Label includeIn="packingBagState" x="190" y="264" text="容积："/>
+	<s:TextInput id="boxCountInput" includeIn="packingBagState" x="232" y="260" width="42"
 				 enter.packingBagState="boxCountInput_enterHandler(event)"/>
-	<s:Label includeIn="packingBagState" x="267" y="200" text="根/箱"/>
-	<s:Button id="resetBtn" includeIn="packingBagState" x="898" y="134" width="60" height="31" label="重置"
+	<s:Label includeIn="packingBagState" x="282" y="264" text="根/箱"/>
+	<s:Button id="resetBtn" includeIn="packingBagState" x="881" y="142" width="60" height="31" label="重置"
 			  chromeColor="#F80C0C"
 			  click.packingBagState="resetBtn_clickHandler(event)"/>
-	<s:Label includeIn="packingBagState" x="182" y="143" text="订单号"/>
+	<s:Label includeIn="packingBagState" x="159" y="140" text="订单号"/>
+	<s:Label includeIn="packingBagState" x="162" y="170" height="16" text="厂区"/>
+	<s:Label includeIn="packingBagState" x="433" y="170" height="16" text="物料名称"/>
+	<s:Label includeIn="packingBagState" x="152" y="198" height="16" text="物料编码"/>
+	<s:Label includeIn="packingBagState" x="437" y="200" height="16" text="批次号"/>
+	<s:Label includeIn="packingBagState" x="707" y="201" height="16" text="工单号"/>
 	<s:TextInput id="orderNumInput"
-				 includeIn="packingBagState" x="235" y="137" width="250"
+				 includeIn="packingBagState" x="215" y="134" width="186"
 				 enter.packingBagState="orderNumInput_enterHandler(event)"
 				 />
-	<s:Label includeIn="packingBagState" x="602" y="144" text="产品型号"/>
-	<s:ComboBox id="producttypeComboBox" includeIn="packingBagState" x="669" y="136"
-			    dataProvider.packingBagState="{productTypeArray}"
-			    change.packingBagState="producttypeComboBox_changeHandler(event)"
-			    focusOut="producttypeComboBox_focusOutHandler(event)"
-			    />
-	<s:Label includeIn="packingBagState" x="46" y="200" text="总箱数："/>
-	<s:TextInput id="totalboxInput" includeIn="packingBagState" x="93" y="196" width="62"
+	<s:TextInput id="factoryIdInput" includeIn="packingBagState" x="215" y="164" width="186"
+				 enter.packingBagState="factoryIdInput_enterHandler(event)"
+				 />
+	<s:TextInput id="materielNameInput" includeIn="packingBagState" x="500" y="164" width="176"
+				 enter.packingBagState="materielNameInput_enterHandler(event)"
+				 />
+	<s:TextInput id="materielNumInput" includeIn="packingBagState" x="215" y="194" width="186"
+				 enter.packingBagState="materielNumInput_enterHandler(event)"
+				 />
+	<s:TextInput id="lotCodeInput" includeIn="packingBagState" x="500" y="195" width="176"
+				 enter="lotCodeInput_enterHandler(event)"/>
+	<s:TextInput id="jobNumInput" includeIn="packingBagState" x="758" y="196" width="176"
+				 enter.packingBagState="jobNumInput_enterHandler(event)"
+				 />
+	<s:Label includeIn="packingBagState" x="433" y="139" text="产品型号"/>
+	<s:ComboBox id="producttypeComboBox" includeIn="packingBagState" x="500" y="131" width="176"
+				focusOut="producttypeComboBox_focusOutHandler(event)"
+				change.packingBagState="producttypeComboBox_changeHandler(event)"
+				dataProvider.packingBagState="{productTypeArray}"/>
+	<s:Label includeIn="packingBagState" x="61" y="264" text="总箱数："/>
+	<s:TextInput id="totalboxInput" includeIn="packingBagState" x="108" y="260" width="62"
 				 enter.packingBagState="totalboxInput_enterHandler(event)"/>
-	<mx:ProgressBar id="totalboxNumProgressBar" includeIn="packingBagState" x="640" y="190"
+	<mx:ProgressBar id="totalboxNumProgressBar" includeIn="packingBagState" x="655" y="254"
 					mode="manual"
 					width="323" height="30" label="完成箱数：0"
 					labelPlacement="center"
 				    barSkin="mx.skins.halo.ProgressBarSkin"
 				    />
 	<mx:ProgressBar id="packTotalProgressBar"
-					includeIn="packingBagState" x="640" y="241"
+					includeIn="packingBagState" x="655" y="305"
 					mode="manual"
 					width="323" height="30" label="完成数量：0"
 					labelPlacement="center"
