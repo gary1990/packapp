@@ -30,7 +30,7 @@
 			
 			//TODO 项目部署目录
 			[Bindable]
-			private var serverName:String = "camelHuacan";
+			private var serverName:String = "";
 			//TODO 操作系统的路径分割符，发布前改成目标操作系统的分隔符
 			[Bindable]
 			private var osSlash:String = "/";
@@ -464,6 +464,78 @@
 							var resultVnaTagTemp1:String = event.result.result.vnatag;
 							//记录到包装记录String
 							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp1+"'),";
+						}
+						else if (resultInfo == "hipotresultnull")
+						{
+							var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
+							snd3.play();
+							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
+							bagFailContainer.setStyle("backgroundColor","#E6E6E6");
+							bagUntestedContainer.setStyle("backgroundColor","yellow");
+							bagUntestedCount.text = (parseFloat(bagUntestedCount.text)+1).toString();
+							if(packUntestedNumLabel.text.length == 0)
+							{
+								packUntestedNumLabel.text = "1";
+							}
+							else
+							{
+								packUntestedNumLabel.text = (parseFloat(packUntestedNumLabel.text)+1).toString()+'\n'+packUntestedNumLabel.text;
+							}
+							if(packUntestedSnLabel.text.length == 0)
+							{
+								packUntestedSnLabel.text = packProductSn;
+							}
+							else
+							{
+								packUntestedSnLabel.text = packProductSn+'\n'+packUntestedSnLabel.text;
+							}
+							if(packUntestedItemLabel.text.length == 0)
+							{
+								packUntestedItemLabel.text = "耐压";
+							}
+							else
+							{
+								packUntestedItemLabel.text = "耐压"+'\n'+packUntestedItemLabel.text;
+							}
+							productSn.text="";
+							//记录到currBoxResultArray
+							currBoxResultArray.push(packProductSn+"untest");
+						}
+						else if(resultInfo == "hipotresultfail")
+						{
+							var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
+							snd3.play();
+							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
+							bagFailContainer.setStyle("backgroundColor","red");
+							bagUntestedContainer.setStyle("backgroundColor","#E6E6E6");
+							bagFailCount.text = (parseFloat(bagFailCount.text)+1).toString();
+							if(packFailNumLabel.text.length == 0)
+							{
+								packFailNumLabel.text = "1";
+							}
+							else
+							{
+								packFailNumLabel.text = (parseFloat(packFailNumLabel.text)+1).toString()+'\n'+packFailNumLabel.text;
+							}
+							if(packFailSnLabel.text.length == 0)
+							{
+								packFailSnLabel.text = packProductSn;
+							}
+							else
+							{
+								packFailSnLabel.text = packProductSn+'\n'+packFailSnLabel.text;
+							}
+							if(packFailItemLabel.text.length == 0)
+							{
+								packFailItemLabel.text = "耐压";
+							}
+							else
+							{
+								packFailItemLabel.text = "耐压"+'\n'+packFailItemLabel.text;
+							}
+							productSn.text="";
+							//记录到currBoxResultArray
+							currBoxResultArray.push(packProductSn+"fail");
 						}
 						else if(resultInfo == "pimresultfail")
 						{
