@@ -29,11 +29,22 @@
 			import spark.events.TextOperationEvent;
 			
 			//TODO 项目部署目录
+			/**
+			[Bindable]
+			private var serverName:String = "~garychen/camelHuacan";
+			//TODO 操作系统的路径分割符，发布前改成目标操作系统的分隔符
+			[Bindable]
+			private var osSlash:String = "/";
+			 * */
+			
+			//For kingsignal
+			
 			[Bindable]
 			private var serverName:String = "";
 			//TODO 操作系统的路径分割符，发布前改成目标操作系统的分隔符
 			[Bindable]
 			private var osSlash:String = "/";
+			
 			
 			[Bindable]
 			private var employeeId:String;
@@ -47,6 +58,8 @@
 			private var packProductSn:String;
 			[Bindable]
 			private var pimState:String;
+			[Bindable]
+			private var hiPotState:String;
 			//华为文件保存路径
 			[Bindable]
 			private var HWFilePath:String;
@@ -419,7 +432,7 @@
 							currBoxResultArray.push(packProductSn+"untest");
 							var resultVnaTagTemp:String = event.result.result.vnatag;
 							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp+"'),";
+							//currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp+"'),";
 							
 							//保存文件到指定华为目录
 							if(resultJsonData && testTime) {
@@ -463,7 +476,7 @@
 							currBoxResultArray.push(packProductSn+"untest");
 							var resultVnaTagTemp1:String = event.result.result.vnatag;
 							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp1+"'),";
+							//currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp1+"'),";
 						}
 						else if (resultInfo == "hipotresultnull")
 						{
@@ -574,7 +587,7 @@
 							currBoxResultArray.push(packProductSn+"fail");
 							var resultVnaTagTemp2:String = event.result.result.vnatag;
 							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp2+"'),";
+							//currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp2+"'),";
 							
 							//保存文件到指定华为目录
 							if(resultJsonData && testTime) {
@@ -618,7 +631,7 @@
 							currBoxResultArray.push(packProductSn+"fail");
 							var resultVnaTagTemp3:String = event.result.result.vnatag;
 							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp3+"'),";
+							//currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp3+"'),";
 							
 							
 							//保存文件到指定华为目录
@@ -790,6 +803,14 @@
 						else
 						{
 							pimState = "pimcheck";
+						}
+						if(!checkHiPotCheckBox.selected)
+						{
+							hiPotState = "hiPotuncheck";	
+						}
+						else
+						{
+							hiPotState = "hiPotcheck";
 						}
 						packingProductSnCheckService.send();
 					}
@@ -1348,6 +1369,9 @@
 				<pimstate>
 					{pimState}
 				</pimstate>
+				<hipotstate>
+					{hiPotState}
+				</hipotstate>
 				<packer>
 					{employeeName}
 				</packer>
@@ -1513,7 +1537,9 @@
 	</s:BorderContainer>
 	<s:CheckBox id="checkPimCheckBox" includeIn="packingBagState" x="43" y="147" label="检查PIM"
 				selected="true"/>
-	<s:CheckBox id="checkVnaCheckBox" includeIn="packingBagState" x="43" y="168" label="检查VNA"
+	<s:CheckBox id="checkHiPotCheckBox" includeIn="packingBagState" x="43" y="168" label="检查耐压"
+				selected="true"/>
+	<s:CheckBox id="checkVnaCheckBox" includeIn="packingBagState" x="43" y="188" label="检查VNA"
 				enabled="false" selected="true"/>
 	<s:Label id="currentTime" includeIn="packingBagState" x="230" y="93" fontSize="12" text="今天是："/>
 	<s:Label includeIn="packingBagState" x="39" y="333" width="968" color="#AFACAC"
