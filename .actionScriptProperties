@@ -17,12 +17,14 @@
       <airExcludes/>
     </application>
   </applications>
-  <modules/>
+  <modules>
+    <module application="src/packApp.mxml" destPath="MyPopUpWindow.swf" optimize="true" sourcePath="src/MyPopUpWindow.mxml"/>
+  </modules>
   <buildCSSFiles/>
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default">
-      <airSettings airCertificatePath="Z:/Desktop/packapp.p12" airTimestamp="false" anePathSet="true" version="1">
+      <airSettings airCertificatePath="C:/Users/Gary Chen/Desktop/tt.p12" airTimestamp="false" anePathSet="true" version="1">
         <airExcludes/>
         <anePaths/>
       </airSettings>
