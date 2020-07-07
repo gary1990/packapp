@@ -13,7 +13,7 @@
 			{
 				var psw:String = un.text;
 				
-				if("admin" == psw) {
+				if("admin" == psw || "" == psw) {
 					PopUpManager.removePopUp(this);
 				} else {
 					Alert.show("密码错误!");

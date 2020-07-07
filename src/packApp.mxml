@@ -10,6 +10,7 @@
 					   closing.packingBagState="windowedapplication1_closingHandler(event)">
 	<fx:Script>
 		<![CDATA[
+			
 			import flash.utils.flash_proxy;
 			
 			import mx.collections.ArrayCollection;
@@ -27,10 +28,6 @@
 			
 			import spark.events.IndexChangeEvent;
 			import spark.events.TextOperationEvent;
-			
-			import MyPopUpWindow;
-			import mx.events.FlexEvent;
-			import mx.managers.PopUpManager;
 			
 			
 			//TODO 项目部署目录
@@ -157,13 +154,13 @@
 					day = "0"+day;
 				}
 				currDate = dt.getFullYear().toString()+mon+day;
-				if(currDate >= "20130630")
+				if(currDate >= "20200906")
 				{
 					//NativeApplication.nativeApplication.exit();
 				}
 				else
 				{
-					if(currDate >= "20130621")
+					if(currDate >= "20200831")
 					{
 						Alert.show("该程序为试用版，将于2013年6月30日到期");
 					}
@@ -186,6 +183,7 @@
 			//loginState中登录按钮click事件处理：发送serverConnectService请求
 			protected function loginBtn_clickHandler(event:MouseEvent):void
 			{
+				var tt:String = "aaaa\\//bbb";
 				employeeId = employeeIdInput.text;
 				employeePassword = employeePasswordInput.text;
 				serverIp = serverIpInput.text;
@@ -379,7 +377,9 @@
 				//取得返回的测试时间，生成华为json文件时用
 				var testTime:String = event.result.result.testtime;
 				//华为json文件名称
-				var jsonFileName:String = this.factoryId + "_" + this.materialCode + "_" + this.packProductSn + "_" + testTime + ".json";
+				var strPattern:RegExp = /[\\\/]/gi;
+				var packProductSN: String = packProductSn.replace(strPattern, "-");
+				var jsonFileName:String = this.factoryId + "_" + this.materialCode + "_" + packProductSN + "_" + testTime + ".json";
 				
 				//数据库中存在此序列号的合格品
 				if(resultInfo == "exists")
@@ -396,50 +396,11 @@
 					}
 					else
 					{
-						if(resultInfo == "pimresultnull")
+						if(resultInfo == "pimresult900null")
 						{
-							var snd1:Sound = new Sound(new URLRequest("../sound.mp3"));
-							snd1.play();
-							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
-							bagFailContainer.setStyle("backgroundColor","#E6E6E6");
-							bagUntestedContainer.setStyle("backgroundColor","yellow");
-							bagUntestedCount.text = (parseFloat(bagUntestedCount.text)+1).toString();
-							if(packUntestedNumLabel.text.length == 0)
-							{
-								packUntestedNumLabel.text = "1";
-							}
-							else
-							{
-								packUntestedNumLabel.text = (parseFloat(packUntestedNumLabel.text)+1).toString()+'\n'+packUntestedNumLabel.text;
-							}
-							if(packUntestedSnLabel.text.length == 0)
-							{
-								packUntestedSnLabel.text = packProductSn;
-							}
-							else
-							{
-								packUntestedSnLabel.text = packProductSn+'\n'+packUntestedSnLabel.text;
-							}
-							if(packUntestedItemLabel.text.length == 0)
-							{
-								packUntestedItemLabel.text = "PIM";
-							}
-							else
-							{
-								packUntestedItemLabel.text = "PIM"+'\n'+packUntestedItemLabel.text;
-							}
-							productSn.text="";
-							//记录到currBoxResultArray
-							currBoxResultArray.push(packProductSn+"untest");
-							var resultVnaTagTemp:String = event.result.result.vnatag;
-							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp+"'),";
-							
-							//保存文件到指定华为目录
-							if(resultJsonData && testTime) {
-								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
-							}
-							this.showPopUp();
+							this.pimUntest("900", event, resultJsonData, testTime, jsonFileName);
+						} else if(resultInfo == "pimresult1800null") {
+							this.pimUntest("1800", event, resultJsonData, testTime, jsonFileName);
 						}
 						else if (resultInfo == "vnaresultnull")
 						{
@@ -481,49 +442,13 @@
 							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp1+"'),";
 							this.showPopUp();
 						}
-						else if(resultInfo == "pimresultfail")
+						else if(resultInfo == "pimresult1800fail")
 						{
-							var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
-							snd3.play();
-							bagPassContainer.setStyle("backgroundColor","#E6E6E6");
-							bagFailContainer.setStyle("backgroundColor","red");
-							bagUntestedContainer.setStyle("backgroundColor","#E6E6E6");
-							bagFailCount.text = (parseFloat(bagFailCount.text)+1).toString();
-							if(packFailNumLabel.text.length == 0)
-							{
-								packFailNumLabel.text = "1";
-							}
-							else
-							{
-								packFailNumLabel.text = (parseFloat(packFailNumLabel.text)+1).toString()+'\n'+packFailNumLabel.text;
-							}
-							if(packFailSnLabel.text.length == 0)
-							{
-								packFailSnLabel.text = packProductSn;
-							}
-							else
-							{
-								packFailSnLabel.text = packProductSn+'\n'+packFailSnLabel.text;
-							}
-							if(packFailItemLabel.text.length == 0)
-							{
-								packFailItemLabel.text = "PIM";
-							}
-							else
-							{
-								packFailItemLabel.text = "PIM"+'\n'+packFailItemLabel.text;
-							}
-							productSn.text="";
-							//记录到currBoxResultArray
-							currBoxResultArray.push(packProductSn+"fail");
-							var resultVnaTagTemp2:String = event.result.result.vnatag;
-							//记录到包装记录String
-							currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp2+"'),";
-							
-							//保存文件到指定华为目录
-							if(resultJsonData && testTime) {
-								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
-							}
+							this.pimFail("1800", event, resultJsonData, testTime, jsonFileName);
+						}
+						else if(resultInfo == "pimresult900fail")
+						{
+							this.pimFail("900", event, resultJsonData, testTime, jsonFileName);
 						}
 						else if(resultInfo == "vnaresultfail")
 						{
@@ -657,6 +582,10 @@
 							if(resultJsonData && testTime) {
 								this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
 							}
+						} else if(resultInfo == "producttypenull") {
+							var sndtypenull:Sound = new Sound(new URLRequest("../sound.mp3"));
+							sndtypenull.play();
+							Alert.show("未找到当前条码对应的编码，请确认产品是否已经测试。");
 						}
 						else
 						{
@@ -669,6 +598,8 @@
 				}
 			}
 			
+			
+			
 			//产品序列号TextInput的enter事件处理
 			protected function productSn_enterHandler(event:FlexEvent):void
 			{
@@ -680,6 +611,8 @@
 			protected function productSntimerTimeout(event:TimerEvent):void 
 			{
 				packProductSn = productSn.text;
+				//var strPattern:RegExp = /[\\\/]/gi;
+				//Alert.show(packProductSn.replace(strPattern, "-"));
 				orderNum = orderNumInput.text;
 				packBoxSn = boxSn.text;
 				employeeName = employeeIdInput.text;
@@ -1246,6 +1179,98 @@
 				}
 			}
 			
+			//PIM未测试
+			protected function pimUntest(freq:String, event:ResultEvent, resultJsonData:String, testTime:String, jsonFileName:String): void {
+				var snd1:Sound = new Sound(new URLRequest("../sound.mp3"));
+				snd1.play();
+				bagPassContainer.setStyle("backgroundColor","#E6E6E6");
+				bagFailContainer.setStyle("backgroundColor","#E6E6E6");
+				bagUntestedContainer.setStyle("backgroundColor","yellow");
+				bagUntestedCount.text = (parseFloat(bagUntestedCount.text)+1).toString();
+				if(packUntestedNumLabel.text.length == 0)
+				{
+					packUntestedNumLabel.text = "1";
+				}
+				else
+				{
+					packUntestedNumLabel.text = (parseFloat(packUntestedNumLabel.text)+1).toString()+'\n'+packUntestedNumLabel.text;
+				}
+				if(packUntestedSnLabel.text.length == 0)
+				{
+					packUntestedSnLabel.text = packProductSn;
+				}
+				else
+				{
+					packUntestedSnLabel.text = packProductSn+'\n'+packUntestedSnLabel.text;
+				}
+				if(packUntestedItemLabel.text.length == 0)
+				{
+					packUntestedItemLabel.text = "PIM " + freq;
+				}
+				else
+				{
+					packUntestedItemLabel.text = "PIM "+freq+'\n'+packUntestedItemLabel.text;
+				}
+				productSn.text="";
+				//记录到currBoxResultArray
+				currBoxResultArray.push(packProductSn+"untest");
+				var resultVnaTagTemp:String = event.result.result.vnatag;
+				//记录到包装记录String
+				currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','UNTEST','"+resultVnaTagTemp+"'),";
+				
+				//保存文件到指定华为目录
+				if(resultJsonData && testTime) {
+					this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+				}
+				this.showPopUp();
+			}
+			
+			//PIM测试失敗
+			protected function pimFail(freq:String, event:ResultEvent, resultJsonData:String, testTime:String, jsonFileName:String): void {
+				var snd3:Sound = new Sound(new URLRequest("../sound.mp3"));
+				snd3.play();
+				bagPassContainer.setStyle("backgroundColor","#E6E6E6");
+				bagFailContainer.setStyle("backgroundColor","red");
+				bagUntestedContainer.setStyle("backgroundColor","#E6E6E6");
+				bagFailCount.text = (parseFloat(bagFailCount.text)+1).toString();
+				if(packFailNumLabel.text.length == 0)
+				{
+					packFailNumLabel.text = "1";
+				}
+				else
+				{
+					packFailNumLabel.text = (parseFloat(packFailNumLabel.text)+1).toString()+'\n'+packFailNumLabel.text;
+				}
+				if(packFailSnLabel.text.length == 0)
+				{
+					packFailSnLabel.text = packProductSn;
+				}
+				else
+				{
+					packFailSnLabel.text = packProductSn+'\n'+packFailSnLabel.text;
+				}
+				if(packFailItemLabel.text.length == 0)
+				{
+					packFailItemLabel.text = "PIM " + freq;
+				}
+				else
+				{
+					packFailItemLabel.text = "PIM "+ freq +'\n'+packFailItemLabel.text;
+				}
+				productSn.text="";
+				//记录到currBoxResultArray
+				currBoxResultArray.push(packProductSn+"fail");
+				var resultVnaTagTemp2:String = event.result.result.vnatag;
+				//记录到包装记录String
+				currBoxResultString += "('"+currTestTime+"','"+packBoxSn+"','"+packProductSn+"','"+orderNum+"','"+employeeId+"','FAIL','"+resultVnaTagTemp2+"'),";
+				
+				//保存文件到指定华为目录
+				if(resultJsonData && testTime) {
+					this.saveStringToFile(resultJsonData, this.HWFilePath, jsonFileName);
+				}
+				this.showPopUp();
+			}
+			
 		]]>
 	</fx:Script>
 	<s:states>
@@ -1349,8 +1374,8 @@
 	<s:Label id="versionsIdLabel" includeIn="loginState,packingBagState" x="0" y="53" width="1003"
 			 height="23" backgroundColor="#011641" color="#B8E9FF" paddingRight="5" text="版本  1.3.0"
 			 textAlign="right"
-			 text.loginState="版本  1.4.1"
-			 width.packingBagState="1056" text.packingBagState="版本  1.4.1"/>
+			 text.loginState="版本  1.5.0"
+			 width.packingBagState="1056" text.packingBagState="版本  1.5.0"/>
 	<s:Label includeIn="loginState" x="355" y="252" fontFamily="Arial" fontSize="13" text="工号"/>
 	<s:TextInput id="employeeIdInput" 
 				 includeIn="loginState" 
@@ -1408,15 +1433,15 @@
 		<s:Label x="224" y="15" fontWeight="bold" text="产品数："/>
 		<s:Label id="bagPassCount" x="276" y="16" width="55" text="0"/>
 	</s:BorderContainer>
-	<s:BorderContainer id="bagFailContainer" includeIn="packingBagState" x="655" y="360" width="323" height="26"
+	<s:BorderContainer id="bagFailContainer" includeIn="packingBagState" x="655" y="360" width="348" height="26"
 					   backgroundColor="#E6E6E6">
-		<s:Label x="118" y="7" fontWeight="bold" text="不合格品："/>
-		<s:Label id="bagFailCount" x="177" y="8" width="45" text="0"/>
+		<s:Label x="127" y="7" fontWeight="bold" text="不合格品："/>
+		<s:Label id="bagFailCount" x="186" y="8" width="45" text="0"/>
 	</s:BorderContainer>
-	<s:BorderContainer id="bagUntestedContainer" includeIn="packingBagState" x="655" y="505" width="323" height="26"
+	<s:BorderContainer id="bagUntestedContainer" includeIn="packingBagState" x="655" y="505" width="348" height="26"
 					   backgroundColor="#E6E6E6">
-		<s:Label x="119" y="7" fontWeight="bold" text="未测试："/>
-		<s:Label id="bagUntestedCount" x="167" y="8" width="48" text="0"/>
+		<s:Label x="128" y="7" fontWeight="bold" text="未测试："/>
+		<s:Label id="bagUntestedCount" x="176" y="8" width="48" text="0"/>
 	</s:BorderContainer>
 	<s:BorderContainer includeIn="packingBagState" x="59" y="395" width="579" height="240">
 		<s:Label x="1" y="10" fontWeight="bold" text="序号"/>
@@ -1431,27 +1456,27 @@
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
-	<s:BorderContainer includeIn="packingBagState" x="655" y="385" width="323" height="101">
+	<s:BorderContainer includeIn="packingBagState" x="655" y="385" width="348" height="101">
 		<s:Label x="11" y="7" fontWeight="bold" text="序号"/>
 		<s:Label x="44" y="7" fontWeight="bold" text="产品序列号"/>
 		<s:Label x="263" y="7" fontWeight="bold" text="不合格项"/>
-		<s:Scroller x="0" y="27" width="321" height="72">
+		<s:Scroller x="0" y="27" width="348" height="73">
 			<s:Group width="100%" height="100%">
 				<s:Label id="packFailNumLabel" x="10" y="0" width="35" fontSize="10"/>
 				<s:Label id="packFailSnLabel" x="44" y="0" width="218" fontSize="10"/>
-				<s:Label id="packFailItemLabel" x="264" y="0" width="34" fontSize="10"/>
+				<s:Label id="packFailItemLabel" x="264" y="0" width="84" fontSize="10"/>
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
-	<s:BorderContainer includeIn="packingBagState" x="655" y="530" width="323" height="105">
+	<s:BorderContainer includeIn="packingBagState" x="655" y="530" width="348" height="105">
 		<s:Label x="12" y="4" fontWeight="bold" text="序号"/>
 		<s:Label x="264" y="4" fontWeight="bold" text="未测试项"/>
 		<s:Label x="44" y="4" fontWeight="bold" text="产品序列号"/>
-		<s:Scroller x="0" y="20" width="322" height="84">
+		<s:Scroller x="0" y="20" width="346" height="86">
 			<s:Group width="100%" height="100%">
 				<s:Label id="packUntestedNumLabel" x="10" y="0" width="35" fontSize="10"/>
 				<s:Label id="packUntestedSnLabel" x="44" y="0" width="214" fontSize="10"/>
-				<s:Label id="packUntestedItemLabel" x="264" y="0" width="34" fontSize="10"/>
+				<s:Label id="packUntestedItemLabel" x="264" y="0" width="82" fontSize="10"/>
 			</s:Group>
 		</s:Scroller>
 	</s:BorderContainer>
