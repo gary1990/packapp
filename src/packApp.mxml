@@ -115,6 +115,177 @@
 			
 			private var popup:MyPopUpWindow;
 			
+			private const TRIAL_PERIOD:int = 40; // 试用期天数
+			
+			// 存储文件路径
+			private var trialFile:File = File.documentsDirectory.resolvePath("trial.dat");
+			
+			// 定义存储结构
+			private var trialData:Object = {
+				startTime: null,
+				lastRunTime: null
+			};
+			
+			
+			// 加载或初始化试用数据
+			private function loadTrialData():void {
+				if (trialFile.exists) {
+					var fileStream:FileStream = new FileStream();
+					fileStream.open(trialFile, FileMode.READ);
+					var content:String = fileStream.readUTF();
+					fileStream.close();
+					trialData = JSON.parse(content);
+				} else {
+					// 初始化数据
+					trialData.startTime = new Date().time; // 首次运行时间
+					trialData.lastRunTime = trialData.startTime;
+					saveTrialData();
+				}
+			}
+			
+			// 保存试用数据
+			private function saveTrialData():void {
+				var fileStream:FileStream = new FileStream();
+				fileStream.open(trialFile, FileMode.WRITE);
+				fileStream.writeUTF(JSON.stringify(trialData));
+				fileStream.close();
+			}
+			
+			// 检测试用期是否有效
+			private function checkTrialValidity():void {
+				var currentTime:Number = new Date().time;
+				
+				// 检查时间回退
+				if (currentTime < trialData.lastRunTime) {
+					disableMainWindow();
+					showInvalidTrialDialog("检测到系统时间被回退，试用期无效！");
+					return;
+				}
+				
+				// 更新上次运行时间
+				trialData.lastRunTime = currentTime;
+				saveTrialData();
+				
+				// 检查试用期是否过期
+				var daysElapsed:int = (currentTime - trialData.startTime) / (1000 * 60 * 60 * 24);
+				if (daysElapsed > TRIAL_PERIOD) {
+					disableMainWindow();
+					showInvalidTrialDialog("试用期已过！");
+				} else {
+					if((TRIAL_PERIOD - daysElapsed) >= 0 && (TRIAL_PERIOD - daysElapsed) <= 15) {
+						trailDayLeft.text = "试用剩余天数：" + (TRIAL_PERIOD - daysElapsed)
+					}
+					// Alert.show("试用剩余天数：" + (TRIAL_PERIOD - daysElapsed));
+				}
+			}
+			
+			// 显示试用期无效提示框
+			private function showInvalidTrialDialog(message:String):void {
+				// 创建模式窗口
+				var dialogOptions:NativeWindowInitOptions = new NativeWindowInitOptions();
+				dialogOptions.systemChrome = NativeWindowSystemChrome.STANDARD;
+				dialogOptions.type = NativeWindowType.NORMAL;
+				
+				var dialog:NativeWindow = new NativeWindow(dialogOptions);
+				dialog.title = "试用期无效";
+				dialog.width = 400;
+				dialog.height = 200;
+				dialog.alwaysInFront = true; // 保证窗口在前面
+				dialog.stage.align = StageAlign.TOP_LEFT;
+				dialog.stage.scaleMode = StageScaleMode.NO_SCALE;
+				
+				// 添加内容
+				var container:Sprite = new Sprite();
+				dialog.stage.addChild(container);
+				
+				// 提示信息
+				var textField:TextField = new TextField();
+				textField.defaultTextFormat = new TextFormat("Arial", 14, 0x000000);
+				textField.autoSize = TextFieldAutoSize.CENTER;
+				textField.text = message;
+				textField.x = 50;
+				textField.y = 50;
+				container.addChild(textField);
+				
+				// 创建确定按钮
+				var button:SimpleButton = createButton("确定退出", 100, 30);
+				button.x = (dialog.width - button.width) / 2;
+				button.y = textField.y + textField.height + 20;
+				button.addEventListener(MouseEvent.CLICK, function (event:MouseEvent):void {
+					dialog.close(); // 关闭模式窗口
+					NativeApplication.nativeApplication.exit(); // 退出主程序
+				});
+				container.addChild(button);
+				
+				// 模式窗口阻塞
+				dialog.activate();
+				dialog.addEventListener(Event.CLOSE, function (event:Event):void {
+					NativeApplication.nativeApplication.exit(); // 防止用户强制关闭窗口
+				});
+			}
+			
+			// 遮罩层变量
+			private var blocker:Sprite;
+			
+			// 禁用主窗口
+			private function disableMainWindow():void {
+				// 创建遮罩层
+				if (!blocker) {
+					blocker = new Sprite();
+					blocker.graphics.beginFill(0x000000, 0.5); // 半透明黑色
+					blocker.graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
+					blocker.graphics.endFill();
+					blocker.mouseEnabled = true; // 阻止鼠标事件传递
+					blocker.mouseChildren = false;
+				}
+				
+				// 将遮罩层添加到舞台顶层
+				stage.addChild(blocker);
+			}
+			
+			
+			// 创建一个简单的按钮
+			private function createButton(label:String, width:Number, height:Number):SimpleButton {
+				var upState:Sprite = new Sprite();
+				upState.graphics.beginFill(0xCCCCCC);
+				upState.graphics.drawRoundRect(0, 0, width, height, 5, 5);
+				upState.graphics.endFill();
+				var upLabel:TextField = createButtonLabel(label, 0x000000);
+				upLabel.x = (width - upLabel.width) / 2;
+				upLabel.y = (height - upLabel.height) / 2;
+				upState.addChild(upLabel);
+				
+				var overState:Sprite = new Sprite();
+				overState.graphics.beginFill(0xAAAAAA);
+				overState.graphics.drawRoundRect(0, 0, width, height, 5, 5);
+				overState.graphics.endFill();
+				var overLabel:TextField = createButtonLabel(label, 0x000000);
+				overLabel.x = (width - overLabel.width) / 2;
+				overLabel.y = (height - overLabel.height) / 2;
+				overState.addChild(overLabel);
+				
+				var downState:Sprite = new Sprite();
+				downState.graphics.beginFill(0x888888);
+				downState.graphics.drawRoundRect(0, 0, width, height, 5, 5);
+				downState.graphics.endFill();
+				var downLabel:TextField = createButtonLabel(label, 0xFFFFFF);
+				downLabel.x = (width - downLabel.width) / 2;
+				downLabel.y = (height - downLabel.height) / 2;
+				downState.addChild(downLabel);
+				
+				return new SimpleButton(upState, overState, downState, upState);
+			}
+			
+			// 创建按钮文字标签
+			private function createButtonLabel(label:String, color:uint):TextField {
+				var textField:TextField = new TextField();
+				textField.defaultTextFormat = new TextFormat("Arial", 12, color, true);
+				textField.autoSize = TextFieldAutoSize.LEFT;
+				textField.text = label;
+				textField.mouseEnabled = false;
+				return textField;
+			}
+			
 			// method to open the PopUp Window on creationComplete
 			private function showPopUp():void {
 				popup = PopUpManager.createPopUp(this,MyPopUpWindow,true) as MyPopUpWindow;
@@ -141,31 +312,10 @@
 					HWPathFileFs.close();
 				}
 				
-				var dt:Date = new Date();
-				var currDate:String;
-				var mon:String = (dt.getMonth()+1).toString();
-				var day:String = dt.dateUTC.toString();
-				if(mon.length == 1)
-				{
-					mon = "0"+mon;
-				}
-				if(day.length == 1)
-				{
-					day = "0"+day;
-				}
-				currDate = dt.getFullYear().toString()+mon+day;
-				if(currDate >= "20200906")
-				{
-					//NativeApplication.nativeApplication.exit();
-				}
-				else
-				{
-					if(currDate >= "20200831")
-					{
-						Alert.show("该程序为试用版，将于2013年6月30日到期");
-					}
-				}
+				loadTrialData();
+				checkTrialValidity();
 			}
+			
 			
 			//选择华为文件保存路径
 			protected function HWPathBtn_clickHandler(event:MouseEvent):void
@@ -401,6 +551,8 @@
 							this.pimUntest("900", event, resultJsonData, testTime, jsonFileName);
 						} else if(resultInfo == "pimresult1800null") {
 							this.pimUntest("1800", event, resultJsonData, testTime, jsonFileName);
+						} else if(resultInfo == "pimresultnull") {
+							this.pimUntest("900&1800", event, resultJsonData, testTime, jsonFileName);
 						}
 						else if (resultInfo == "vnaresultnull")
 						{
@@ -1374,8 +1526,8 @@
 	<s:Label id="versionsIdLabel" includeIn="loginState,packingBagState" x="0" y="53" width="1003"
 			 height="23" backgroundColor="#011641" color="#B8E9FF" paddingRight="5" text="版本  1.3.0"
 			 textAlign="right"
-			 text.loginState="版本  1.5.0"
-			 width.packingBagState="1056" text.packingBagState="版本  1.5.0"/>
+			 text.loginState="版本  1.5.2"
+			 width.packingBagState="1056" text.packingBagState="版本  1.5.2"/>
 	<s:Label includeIn="loginState" x="355" y="252" fontFamily="Arial" fontSize="13" text="工号"/>
 	<s:TextInput id="employeeIdInput" 
 				 includeIn="loginState" 
@@ -1538,5 +1690,9 @@
 					width="323" height="30" label="完成数量：0"
 					labelPlacement="center"
 					barSkin="mx.skins.halo.ProgressBarSkin"/>
+	<s:Label id="trailDayLeft" includeIn="loginState,packingBagState" x="900" y="10" width="152"
+			 height="22" backgroundColor="#011641" color="#B8E9FF" fontFamily="Rockwell Extra Bold"
+			 fontSize="15" fontWeight="bold" textAlign="right" verticalAlign="middle"
+			 x.loginState="846" y.loginState="10"/>
 	
 </s:WindowedApplication>
