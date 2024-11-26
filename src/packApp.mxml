@@ -738,6 +738,7 @@
 							var sndtypenull:Sound = new Sound(new URLRequest("../sound.mp3"));
 							sndtypenull.play();
 							Alert.show("未找到当前条码对应的编码，请确认产品是否已经测试。");
+							this.showPopUp();
 						}
 						else
 						{
@@ -1526,8 +1527,8 @@
 	<s:Label id="versionsIdLabel" includeIn="loginState,packingBagState" x="0" y="53" width="1003"
 			 height="23" backgroundColor="#011641" color="#B8E9FF" paddingRight="5" text="版本  1.3.0"
 			 textAlign="right"
-			 text.loginState="版本  1.5.2"
-			 width.packingBagState="1056" text.packingBagState="版本  1.5.2"/>
+			 text.loginState="版本  1.5.3"
+			 width.packingBagState="1056" text.packingBagState="版本  1.5.3"/>
 	<s:Label includeIn="loginState" x="355" y="252" fontFamily="Arial" fontSize="13" text="工号"/>
 	<s:TextInput id="employeeIdInput" 
 				 includeIn="loginState" 
